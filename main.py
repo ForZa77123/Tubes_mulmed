@@ -8,7 +8,7 @@ import random
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
-cap = cv2.VideoCapture(1)  # Adjust device index accordingly
+cap = cv2.VideoCapture(0)  # Adjust device index accordingly
 
 prev_time = 0  # For FPS calculation
 
@@ -18,8 +18,8 @@ def draw_start_screen(frame):
     cv2.rectangle(overlay, (0, 0), (w, h), (0, 0, 0), -1)
     alpha = 0.7
     cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-    cv2.putText(frame, 'TEBAK ANOMALI', (w//2-220, h//2-60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 5)
-    cv2.putText(frame, 'Tekan [Spasi] untuk mulai', (w//2-270, h//2+20), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,255,255), 3)
+    cv2.putText(frame, 'TEBAK ANOMALI', (w//2-220, h//2-60), cv2.FONT_ITALIC, 2, (255,255,255), 5)
+    cv2.putText(frame, 'Tekan [Spasi] untuk mulai', (w//2-270, h//2+20), cv2.FONT_ITALIC, 1.2, (255,255,255), 3)
     return frame
 
 def draw_question_screen(frame, choices, timer=None):
@@ -56,10 +56,17 @@ def draw_question_screen(frame, choices, timer=None):
                 frame[y:y+img_h, x:x+img_w] = img
             # Nomor urut
             cv2.rectangle(frame, (x, y+img_h+5), (x+img_w, y+img_h+40), (0,0,0), -1)
-            cv2.putText(frame, str(i+1), (x+img_w//2-15, y+img_h+35), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,255,255), 3)
+            cv2.putText(frame, str(i+1), (x+img_w//2-15, y+img_h+35), cv2.FONT_ITALIC, 1.0, (255,255,255), 3)
     if timer is not None:
-        cv2.putText(frame, f"Timer: {timer}", (w//2-80, y+img_h+60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,255), 4)
-    return frame
+        font = cv2.FONT_ITALIC
+        timer_text = str(timer)
+        text_size = cv2.getTextSize(timer_text, font, 4, 8)[0]
+        text_x = (w - text_size[0]) // 2
+        text_y = (h + text_size[1]) // 2
+        # Outline
+        cv2.putText(frame, timer_text, (text_x, text_y), font, 4, (255,255,255), 10, cv2.LINE_AA)
+        # Isi
+        cv2.putText(frame, timer_text, (text_x, text_y), font, 4, (255,255,255), 6, cv2.LINE_AA)
 
 pg.mixer.init()
 
@@ -141,6 +148,10 @@ with mp_hands.Hands(
                 sound_path = f"aset/sound/{q['answer']}.wav"
                 pg.mixer.music.load(sound_path)
                 pg.mixer.music.play()
+                countdown_sound = pg.mixer.Sound("aset/sound/countdown.wav")
+                countdown_channel = pg.mixer.Channel(1)
+                countdown_channel.play(countdown_sound, loops=-1)
+                countdown_sound.play()
                 countdown_start = time.time()
             timer = 10 - int(time.time() - countdown_start)  # Ubah countdown jadi 10 detik
             frame = draw_question_screen(frame, q['choices'], timer=timer)
@@ -177,17 +188,20 @@ with mp_hands.Hands(
                 mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
             # Tampilkan gesture yang terbaca di layar
             if gesture_count is not None:
-                cv2.putText(frame, f'Gesture: {gesture_count}', (30, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 4)
+                cv2.putText(frame, f'Gesture: {gesture_count}', (30, 120), cv2.FONT_ITALIC, 2, (255,255,255), 4)
             else:
-                cv2.putText(frame, 'Gesture: -', (30, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,255), 4)
+                cv2.putText(frame, 'Gesture: -', (30, 120), cv2.FONT_ITALIC, 2, (0,0,255), 4)
             # Tampilkan gesture stabil
-            cv2.putText(frame, f'Stable: {gesture_stable if gesture_stable_count else "-"}', (30, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,0), 3)
+            cv2.putText(frame, f'Stable: {gesture_stable if gesture_stable_count else "-"}', (30, 180), cv2.FONT_ITALIC, 1.5, (255,255,255), 3)
             # Countdown
             if timer <= 0:
                 user_answer = gesture_stable if gesture_stable_count else last_gesture
                 state = 'result'
                 countdown_start = None
                 pg.mixer.music.stop()
+                # Stop countdown sound saat waktu habis
+                if 'countdown_channel' in locals():
+                    countdown_channel.stop()
             cv2.imshow('Hand Finger Count', frame)
             continue
 
@@ -199,14 +213,18 @@ with mp_hands.Hands(
                 score += 20
                 feedback = 'BENAR!'
                 color = (0,255,0)
+                correct_sound = pg.mixer.Sound("aset/sound/correct.mp3")
+                correct_sound.play()
             else:
                 feedback = 'SALAH!'
                 color = (0,0,255)
+                wrong_sound = pg.mixer.Sound("aset/sound/wrong.mp3")
+                wrong_sound.play()
             frame = draw_question_screen(frame, q['choices'])
             h, w, _ = frame.shape
-            cv2.putText(frame, feedback, (w//2-120, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, color, 5)
-            cv2.putText(frame, f'Jawaban: {idx+1}', (w//2-120, 200), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), 3)
-            cv2.putText(frame, f'Skor: {score}', (w//2-120, 270), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,255,255), 3)
+            cv2.putText(frame, feedback, (w//2-120, 120), cv2.FONT_ITALIC, 2, color, 5)
+            cv2.putText(frame, f'Jawaban: {idx+1}', (w//2-120, 200), cv2.FONT_ITALIC, 1.5, (255,255,255), 3)
+            cv2.putText(frame, f'Skor: {score}', (w//2-120, 270), cv2.FONT_ITALIC, 1.5, (255,255,255), 3)
             cv2.imshow('Hand Finger Count', frame)
             cv2.waitKey(1200)
             current_question += 1
@@ -222,9 +240,9 @@ with mp_hands.Hands(
             cv2.rectangle(overlay, (0, 0), (w, h), (0, 0, 0), -1)
             alpha = 0.7
             cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-            cv2.putText(frame, 'SELESAI!', (w//2-180, h//2-60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 5)
-            cv2.putText(frame, f'Skor Akhir: {score}', (w//2-220, h//2+20), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,255,255), 3)
-            cv2.putText(frame, 'Tekan [Spasi] untuk main lagi', (w//2-270, h//2+80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255,255,255), 3)
+            cv2.putText(frame, 'SELESAI!', (w//2-180, h//2-60), cv2.FONT_ITALIC, 2, (255,255,255), 5)
+            cv2.putText(frame, f'Skor Akhir: {score}', (w//2-220, h//2+20), cv2.FONT_ITALIC, 1.5, (255,255,255), 3)
+            cv2.putText(frame, 'Tekan [Spasi] untuk main lagi', (w//2-270, h//2+80), cv2.FONT_ITALIC, 1.2, (255,255,255), 3)
             cv2.imshow('Hand Finger Count', frame)
             if key == ord(' '):
                 state = 'question'
