@@ -37,7 +37,7 @@ pip install -r requirements.txt
 ```
 
 3. To run:
-run `main.py`
+python `main.py`
 
 *If there's an error `Error: Could not open video capture device.`. here's what you need to do:
 - find this code:
