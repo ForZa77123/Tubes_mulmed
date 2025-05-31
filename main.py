@@ -230,9 +230,32 @@ with mp_hands.Hands(
             cv2.rectangle(overlay, (0, 0), (w, h), (0, 0, 0), -1)
             alpha = 0.7
             cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-            cv2.putText(frame, 'SELESAI!', (w//2-180, h//2-60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 5)
-            cv2.putText(frame, f'Skor Akhir: {score}', (w//2-220, h//2+20), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,255,255), 3)
-            cv2.putText(frame, 'Tekan [Spasi] untuk main lagi', (w//2-270, h//2+80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255,255,255), 3)
+            # Ukuran font lebih kecil
+            font_scale_title = 1.2
+            font_scale = 0.9
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            thickness_title = 3
+            thickness = 2
+
+            # Teks
+            text1 = 'SELESAI!'
+            text2 = f'Skor Akhir: {score}'
+            text3 = 'Tekan [Spasi] untuk main lagi'
+            text4 = 'Tekan [Q] untuk keluar'
+
+            # Hitung posisi agar center
+            y_center = h // 2
+            spacing = 45
+
+            def center_text(text, y, font_scale, thickness):
+                text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+                x = (w - text_size[0]) // 2
+                return (x, y)
+
+            cv2.putText(frame, text1, center_text(text1, y_center - spacing, font_scale_title, thickness_title), font, font_scale_title, (0,255,0), thickness_title)
+            cv2.putText(frame, text2, center_text(text2, y_center, font_scale, thickness), font, font_scale, (0,255,255), thickness)
+            cv2.putText(frame, text3, center_text(text3, y_center + spacing, font_scale, thickness), font, font_scale, (255,255,255), thickness)
+            cv2.putText(frame, text4, center_text(text4, y_center + spacing*2, font_scale, thickness), font, font_scale, (0,0,255), thickness)
             cv2.imshow('Hand Finger Count', frame)
             if key == ord(' '):
                 state = 'question'
@@ -245,6 +268,8 @@ with mp_hands.Hands(
                 gesture_history = []
                 gesture_stable = 1
                 gesture_stable_count = 0
+            elif key == ord('q'):
+                break
             continue
 
         # fallback: tampilkan frame
